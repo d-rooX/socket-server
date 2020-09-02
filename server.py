@@ -4,12 +4,12 @@ import time
 
 
 class Server():
-    def __init__(self, port=1337, max_clients=5):
+    def __init__(self, port=1337, max_clients=5, server_name='server'):
         self.srvsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.PORT = port
         self.MAX_CLIENTS = max_clients
         self.to_monitor = [self.srvsocket, ]
-        self.users = {}
+        self.users = {self.srvsocket: f'{server_name}{self.srvsocket.fileno()}'}
 
     def server_start(self):
         while True:
@@ -32,8 +32,8 @@ class Server():
         request = user_socket.recv(4096)
         if request:
             for user in self.users:
-                if not user is user_socket:
-                    user.send(f'{self.users[user]}: {request.decode()}'.encode())
+                if not user is user_socket and not user is self.srvsocket:  # todo: fix
+                    user.send(f'{self.users[user_socket]}: {request.decode("utf8")}'.encode('utf8'))
         else:
             user_socket.close()
             print(self.users[user_socket], 'disconnected')
