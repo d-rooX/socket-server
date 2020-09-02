@@ -1,41 +1,53 @@
 import socket
-import threading
+from select import select
 import time
 
-server = socket.socket()
-server.bind(('', 1337))
-server.listen(5)
 
-users = {}
+class Server():
+    def __init__(self, port=1337, max_clients=5):
+        self.srvsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.PORT = port
+        self.MAX_CLIENTS = max_clients
+        self.to_monitor = [self.srvsocket, ]
+        self.users = {}
 
+    def server_start(self):
+        while True:
+            try:
+                self.srvsocket.bind(('', self.PORT))
+                print(self.PORT)
+                break
+            except OSError:
+                self.PORT += 1
+        self.srvsocket.listen(self.MAX_CLIENTS)
+        self.event_loop()
 
-def user_messages_handler(user):
-    print(f'Listening {users[user]}')
-    while True:
-        data = user.recv(2048)
-        print(f'\n{users[user]} sent {data}')
-        send_all(data, user)
+    def accept_connections(self):
+        user_socket, addr = self.srvsocket.accept()
+        self.users[user_socket] = f'{addr[0]}<{user_socket.fileno()}>'
+        self.to_monitor.append(user_socket)
+        print(f'Connection from {addr}')
 
+    def send_message(self, user_socket):
+        request = user_socket.recv(4096)
+        if request:
+            for user in self.users:
+                if not user is user_socket:
+                    user.send(f'From {self.users[user]} --> {request.decode()}'.encode())
+        else:
+            user_socket.close()
+            self.users.pop(user_socket)
 
-def send_all(data, sender):
-    for user in users:
-        if not (user is sender):
-            user.send(data)
-
-
-def connection_handler():
-    counter = 0
-    while True:
-        time.sleep(0.1)
-        user_socket, address = server.accept()
-        users.update({user_socket: f'{address[0]}>{counter}'})
-        counter += 1
-        user_socket.send('Hello from server!'.encode('utf-8'))
-        print(f'User {users[user_socket]} accepted')
-        listener = threading.Thread(target=user_messages_handler, args=(user_socket,), name=address[0])
-        listener.start()
-        print(threading.enumerate())
+    def event_loop(self):
+        while True:
+            ready_to_read, _, _ = select(self.to_monitor, [], [])
+            for sock in ready_to_read:
+                if sock is self.srvsocket:
+                    self.accept_connections()
+                else:
+                    self.send_message(sock)
 
 
 if __name__ == '__main__':
-    connection_handler()
+    server = Server()
+    server.server_start()
