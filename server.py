@@ -22,30 +22,32 @@ class Server():
         self.srvsocket.listen(self.MAX_CLIENTS)
         self.event_loop()
 
-    def accept_connections(self):
+    def accept_connection(self):
         user_socket, addr = self.srvsocket.accept()
         self.users[user_socket] = f'{addr[0]}<{user_socket.fileno()}>'
         self.to_monitor.append(user_socket)
         print(f'Connection from {addr}')
 
-    def send_message(self, user_socket):
+    def relay_message(self, user_socket):
         request = user_socket.recv(4096)
         if request:
             for user in self.users:
                 if not user is user_socket:
-                    user.send(f'From {self.users[user]} --> {request.decode()}'.encode())
+                    user.send(f'{self.users[user]}: {request.decode()}'.encode())
         else:
             user_socket.close()
+            print(self.users[user_socket], 'disconnected')
             self.users.pop(user_socket)
+            self.to_monitor.remove(user_socket)
 
     def event_loop(self):
         while True:
             ready_to_read, _, _ = select(self.to_monitor, [], [])
             for sock in ready_to_read:
                 if sock is self.srvsocket:
-                    self.accept_connections()
+                    self.accept_connection()
                 else:
-                    self.send_message(sock)
+                    self.relay_message(sock)
 
 
 if __name__ == '__main__':
