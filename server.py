@@ -4,17 +4,17 @@ import time
 
 
 class Server():
-    def __init__(self, port=1337, max_clients=5, server_name='server'):
+    def __init__(self, port=11337, max_clients=5):
         self.srvsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.PORT = port
         self.MAX_CLIENTS = max_clients
         self.to_monitor = [self.srvsocket, ]
-        self.users = {self.srvsocket: f'{server_name}{self.srvsocket.fileno()}'}
+        self.users = {}
 
     def server_start(self):
         while True:
             try:
-                self.srvsocket.bind(('', self.PORT))
+                self.srvsocket.bind(('0.0.0.0', self.PORT))
                 print(self.PORT)
                 break
             except OSError:
