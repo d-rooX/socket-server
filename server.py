@@ -22,7 +22,7 @@ class Server:
         self.server_socket.listen(self.MAX_CLIENTS)
         self.event_loop()
 
-    def accept_connection(self):
+    def accept_connection(self, server_socket):
         user_socket, addr = self.server_socket.accept()
         self.users[user_socket] = f'{addr[0]}<{user_socket.fileno()}>'
         self.selector.register(fileobj=user_socket, events=selectors.EVENT_READ, data=self.relay_message)
